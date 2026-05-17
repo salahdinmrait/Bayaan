@@ -4,18 +4,17 @@
  *   audio     — the audio file
  *   direction — 'ar-to-nl' | 'nl-to-ar'
  *
- * Calls Gemini v1 REST API directly and returns { text: string }
+ * Uses Groq Whisper (whisper-large-v3) — free, no billing required.
+ * Returns { text: string }
  */
 
 const { formidable } = require('formidable');
 const fs = require('fs');
 
-const LANGUAGE_NAMES = {
-  'ar-to-nl': 'Arabic',
-  'nl-to-ar': 'Dutch',
+const LANGUAGE_CODES = {
+  'ar-to-nl': 'ar',
+  'nl-to-ar': 'nl',
 };
-
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,8 +26,8 @@ async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
+  if (!process.env.GROQ_API_KEY) {
+    return res.status(500).json({ error: 'GROQ_API_KEY is not configured on the server.' });
   }
 
   const form = formidable({ maxFileSize: 25 * 1024 * 1024, keepExtensions: true });
@@ -46,8 +45,8 @@ async function handler(req, res) {
   }
 
   const direction = fields.direction?.[0] || 'ar-to-nl';
-  const language  = LANGUAGE_NAMES[direction] || 'Arabic';
-  const mimeType  = audioFile.mimetype || 'audio/mp4';
+  const language  = LANGUAGE_CODES[direction] || 'ar';
+  const filename  = audioFile.originalFilename || `audio.${audioFile.mimetype?.split('/')[1] || 'mp4'}`;
 
   let audioData;
   try {
@@ -58,36 +57,43 @@ async function handler(req, res) {
     fs.unlink(audioFile.filepath, () => {});
   }
 
-  const base64Audio = audioData.toString('base64');
+  /* Build multipart form for Groq Whisper API (OpenAI-compatible) */
+  const boundary = '----BayaanBoundary' + Date.now();
+  const mimeType = audioFile.mimetype || 'audio/mp4';
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const parts = [
+    `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\n${language}`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
+  ];
+
+  const header  = Buffer.from(parts.join('\r\n') + '\r\n');
+  const footer  = Buffer.from(`\r\n--${boundary}--\r\n`);
+  const body    = Buffer.concat([header, audioData, footer]);
 
   let apiRes;
   try {
-    apiRes = await fetch(apiUrl, {
+    apiRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inlineData: { mimeType, data: base64Audio } },
-            { text: `Transcribe this audio recording. The speaker is speaking ${language}. Return only the transcription text — no labels, no explanations, no formatting markers.` },
-          ],
-        }],
-      }),
+      headers: {
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      },
+      body,
     });
   } catch (err) {
-    return res.status(502).json({ error: 'Could not reach Gemini API: ' + err.message });
+    return res.status(502).json({ error: 'Could not reach Groq API: ' + err.message });
   }
 
-  const data = await apiRes.json();
-
   if (!apiRes.ok) {
-    const msg = data?.error?.message || JSON.stringify(data);
+    const errData = await apiRes.json().catch(() => ({}));
+    const msg = errData?.error?.message || `Groq error ${apiRes.status}`;
     return res.status(502).json({ error: msg });
   }
 
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+  /* response_format=text returns plain text, not JSON */
+  const text = (await apiRes.text()).trim();
   return res.status(200).json({ text });
 }
 
