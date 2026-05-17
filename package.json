@@ -1,14 +1,14 @@
 {
   "name": "bayaan",
   "version": "1.0.0",
-  "description": "Audio transcription and translation app — Arabic ↔ Dutch, powered by OpenAI Whisper",
+  "description": "Audio transcription and translation app — Arabic ↔ Dutch, powered by Google Gemini",
   "type": "module",
   "scripts": {
     "dev": "vercel dev"
   },
   "dependencies": {
-    "formidable": "^3.5.1",
-    "openai": "^4.52.0"
+    "@google/generative-ai": "^0.24.1",
+    "formidable": "^3.5.1"
   },
   "engines": {
     "node": ">=20.0.0"

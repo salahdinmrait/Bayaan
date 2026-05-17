@@ -16,8 +16,8 @@ The design system (colours, fonts, spacing tokens, dark/light theme) is intentio
 | Layer | Choice |
 |-------|--------|
 | Frontend | Vanilla HTML5 + CSS3 + JavaScript (no framework) |
-| Transcription | OpenAI Whisper API (`whisper-1`) |
-| Translation | OpenAI GPT-4o-mini (`gpt-4o-mini`) |
+| Transcription | Google Gemini (`gemini-2.0-flash` with inline audio) |
+| Translation | Google Gemini (`gemini-2.0-flash`) |
 | Backend | Vercel Serverless Functions (`api/`) — Node.js 20 ESM |
 | Multipart parsing | `formidable` v3 |
 | Fonts | Poppins, Lora, Kufam, Mirza (local TTF, same as Vertaler) |
@@ -64,7 +64,8 @@ Then open `http://localhost:3000`.
 
 | Variable | Purpose |
 |----------|---------|
-| `OPENAI_API_KEY` | Used by both `/api/transcribe` and `/api/translate` |
+| `GEMINI_API_KEY` | Used by both `/api/transcribe` and `/api/translate` |
+| `GEMINI_MODEL` | Optional — overrides the model (default: `gemini-2.0-flash`) |
 
 Set in Vercel dashboard → Project → Settings → Environment Variables for production.
 

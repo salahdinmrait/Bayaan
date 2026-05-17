@@ -1,30 +1,29 @@
 /**
  * POST /api/transcribe
- * Accepts a multipart form upload with fields:
- *   audio    — the audio file (blob or file)
+ * Accepts multipart form fields:
+ *   audio     — the audio file
  *   direction — 'ar-to-nl' | 'nl-to-ar'
  *
- * Forwards to OpenAI Whisper and returns { text: string }
+ * Sends audio inline to Gemini and returns { text: string }
  */
 
-import { OpenAI } from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import formidable from 'formidable';
 import fs from 'fs';
 
 export const config = {
   api: {
-    bodyParser: false,   // let formidable handle multipart
+    bodyParser: false,
     sizeLimit: '25mb',
   },
 };
 
-const LANGUAGE_MAP = {
-  'ar-to-nl': 'ar',
-  'nl-to-ar': 'nl',
+const LANGUAGE_NAMES = {
+  'ar-to-nl': 'Arabic',
+  'nl-to-ar': 'Dutch',
 };
 
 export default async function handler(req, res) {
-  /* CORS headers for local dev */
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -34,21 +33,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: 'OPENAI_API_KEY is not configured on the server.' });
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
   }
 
-  /* Parse multipart form */
-  const form = formidable({
-    maxFileSize: 25 * 1024 * 1024,
-    keepExtensions: true,
-  });
+  const form = formidable({ maxFileSize: 25 * 1024 * 1024, keepExtensions: true });
 
   let fields, files;
   try {
     [fields, files] = await form.parse(req);
-  } catch (parseErr) {
-    return res.status(400).json({ error: 'Could not parse the uploaded file. ' + parseErr.message });
+  } catch (err) {
+    return res.status(400).json({ error: 'Could not parse the uploaded file. ' + err.message });
   }
 
   const audioFile = files.audio?.[0];
@@ -56,26 +51,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No audio file received.' });
   }
 
-  const direction = fields.direction?.[0] || 'ar-to-nl';
-  const language  = LANGUAGE_MAP[direction] || 'ar';
+  const direction   = fields.direction?.[0] || 'ar-to-nl';
+  const language    = LANGUAGE_NAMES[direction] || 'Arabic';
+  const mimeType    = audioFile.mimetype || 'audio/webm';
+  const model       = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-  let transcription;
+  let audioData;
   try {
-    transcription = await client.audio.transcriptions.create({
-      file: fs.createReadStream(audioFile.filepath),
-      model: 'whisper-1',
-      language,
-      response_format: 'text',
-    });
-  } catch (whisperErr) {
-    const msg = whisperErr?.message || 'Whisper transcription failed.';
-    return res.status(502).json({ error: msg });
+    audioData = fs.readFileSync(audioFile.filepath);
+  } catch (err) {
+    return res.status(500).json({ error: 'Could not read uploaded file.' });
   } finally {
-    /* Clean up temp file */
     fs.unlink(audioFile.filepath, () => {});
   }
 
-  return res.status(200).json({ text: transcription });
+  const base64Audio = audioData.toString('base64');
+
+  const genAI     = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const gemini    = genAI.getGenerativeModel({ model });
+
+  let result;
+  try {
+    result = await gemini.generateContent([
+      {
+        inlineData: {
+          mimeType,
+          data: base64Audio,
+        },
+      },
+      {
+        text: `Transcribe this audio recording. The speaker is speaking ${language}. Return only the transcription text — no labels, no explanations, no formatting markers.`,
+      },
+    ]);
+  } catch (err) {
+    return res.status(502).json({ error: err.message || 'Gemini transcription failed.' });
+  }
+
+  const text = result.response.text().trim();
+  return res.status(200).json({ text });
 }
