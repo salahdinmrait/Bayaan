@@ -16,6 +16,31 @@ const LANGUAGE_CODES = {
   'nl-to-ar': 'nl',
 };
 
+/* Build a correct multipart/form-data body from Buffers */
+function buildMultipart(boundary, fields, fileField) {
+  const parts = [];
+
+  /* Text fields */
+  for (const [name, value] of Object.entries(fields)) {
+    parts.push(Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
+      `${value}\r\n`
+    ));
+  }
+
+  /* File field */
+  parts.push(Buffer.from(
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="${fileField.name}"; filename="${fileField.filename}"\r\n` +
+    `Content-Type: ${fileField.mimeType}\r\n\r\n`
+  ));
+  parts.push(fileField.data);
+  parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+  return Buffer.concat(parts);
+}
+
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -46,7 +71,13 @@ async function handler(req, res) {
 
   const direction = fields.direction?.[0] || 'ar-to-nl';
   const language  = LANGUAGE_CODES[direction] || 'ar';
-  const filename  = audioFile.originalFilename || `audio.${audioFile.mimetype?.split('/')[1] || 'mp4'}`;
+  const filename  = audioFile.originalFilename || 'audio.m4a';
+
+  /* Normalise MIME type — m4a variants all map to audio/mp4 for Groq */
+  const rawMime = audioFile.mimetype || 'audio/mp4';
+  const mimeType = ['audio/x-m4a', 'audio/m4a', 'audio/mp4a-latm'].includes(rawMime)
+    ? 'audio/mp4'
+    : rawMime;
 
   let audioData;
   try {
@@ -57,20 +88,17 @@ async function handler(req, res) {
     fs.unlink(audioFile.filepath, () => {});
   }
 
-  /* Build multipart form for Groq Whisper API (OpenAI-compatible) */
-  const boundary = '----BayaanBoundary' + Date.now();
-  const mimeType = audioFile.mimetype || 'audio/mp4';
-
-  const parts = [
-    `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3`,
-    `--${boundary}\r\nContent-Disposition: form-data; name="language"\r\n\r\n${language}`,
-    `--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext`,
-    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`,
-  ];
-
-  const header  = Buffer.from(parts.join('\r\n') + '\r\n');
-  const footer  = Buffer.from(`\r\n--${boundary}--\r\n`);
-  const body    = Buffer.concat([header, audioData, footer]);
+  const boundary = 'BayaanBoundary' + Date.now();
+  const body = buildMultipart(boundary, {
+    model: 'whisper-large-v3',
+    language,
+    response_format: 'text',
+  }, {
+    name: 'file',
+    filename,
+    mimeType,
+    data: audioData,
+  });
 
   let apiRes;
   try {
@@ -92,7 +120,7 @@ async function handler(req, res) {
     return res.status(502).json({ error: msg });
   }
 
-  /* response_format=text returns plain text, not JSON */
+  /* response_format=text returns plain text */
   const text = (await apiRes.text()).trim();
   return res.status(200).json({ text });
 }
