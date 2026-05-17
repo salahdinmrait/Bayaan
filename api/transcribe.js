@@ -15,7 +15,7 @@ const LANGUAGE_NAMES = {
   'nl-to-ar': 'Dutch',
 };
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

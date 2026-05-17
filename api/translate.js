@@ -11,7 +11,7 @@ const LANGUAGE_PAIRS = {
   'nl-to-ar': { from: 'Dutch',  to: 'Arabic' },
 };
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
