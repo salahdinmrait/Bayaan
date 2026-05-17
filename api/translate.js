@@ -2,14 +2,16 @@
  * POST /api/translate
  * Body: { text: string, direction: 'ar-to-nl' | 'nl-to-ar' }
  * Returns: { text: string }
+ *
+ * Calls Gemini v1 REST API directly.
  */
-
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const LANGUAGE_PAIRS = {
   'ar-to-nl': { from: 'Arabic', to: 'Dutch' },
   'nl-to-ar': { from: 'Dutch',  to: 'Arabic' },
 };
+
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,21 +35,31 @@ module.exports = async function handler(req, res) {
 
   const pair       = LANGUAGE_PAIRS[direction] || LANGUAGE_PAIRS['ar-to-nl'];
   const { from, to } = pair;
-  const model      = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
-  const genAI  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const gemini = genAI.getGenerativeModel({
-    model,
-    systemInstruction: `You are a professional translator specialising in ${from} and ${to}. Translate the user's text from ${from} to ${to} accurately, preserving tone and meaning. Return only the translated text — no introductions, explanations, or quotation marks.`,
-  });
+  const prompt = `You are a professional translator specialising in ${from} and ${to}. Translate the following text from ${from} to ${to} accurately, preserving tone and meaning. Return only the translated text — no introductions, explanations, or quotation marks.\n\n${text.trim()}`;
 
-  let result;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+  let apiRes;
   try {
-    result = await gemini.generateContent(text.trim());
+    apiRes = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    });
   } catch (err) {
-    return res.status(502).json({ error: err.message || 'Gemini translation failed.' });
+    return res.status(502).json({ error: 'Could not reach Gemini API: ' + err.message });
   }
 
-  const translated = result.response.text().trim();
+  const data = await apiRes.json();
+
+  if (!apiRes.ok) {
+    const msg = data?.error?.message || JSON.stringify(data);
+    return res.status(502).json({ error: msg });
+  }
+
+  const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
   return res.status(200).json({ text: translated });
 };

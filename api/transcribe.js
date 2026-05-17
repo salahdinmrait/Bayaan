@@ -4,10 +4,9 @@
  *   audio     — the audio file
  *   direction — 'ar-to-nl' | 'nl-to-ar'
  *
- * Sends audio inline to Gemini and returns { text: string }
+ * Calls Gemini v1 REST API directly and returns { text: string }
  */
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { formidable } = require('formidable');
 const fs = require('fs');
 
@@ -15,6 +14,8 @@ const LANGUAGE_NAMES = {
   'ar-to-nl': 'Arabic',
   'nl-to-ar': 'Dutch',
 };
+
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -47,7 +48,6 @@ async function handler(req, res) {
   const direction = fields.direction?.[0] || 'ar-to-nl';
   const language  = LANGUAGE_NAMES[direction] || 'Arabic';
   const mimeType  = audioFile.mimetype || 'audio/mp4';
-  const model     = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   let audioData;
   try {
@@ -59,29 +59,40 @@ async function handler(req, res) {
   }
 
   const base64Audio = audioData.toString('base64');
-  const genAI       = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const gemini      = genAI.getGenerativeModel({ model });
 
-  let result;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+  let apiRes;
   try {
-    result = await gemini.generateContent([
-      { inlineData: { mimeType, data: base64Audio } },
-      { text: `Transcribe this audio recording. The speaker is speaking ${language}. Return only the transcription text — no labels, no explanations, no formatting markers.` },
-    ]);
+    apiRes = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inlineData: { mimeType, data: base64Audio } },
+            { text: `Transcribe this audio recording. The speaker is speaking ${language}. Return only the transcription text — no labels, no explanations, no formatting markers.` },
+          ],
+        }],
+      }),
+    });
   } catch (err) {
-    return res.status(502).json({ error: err.message || 'Gemini transcription failed.' });
+    return res.status(502).json({ error: 'Could not reach Gemini API: ' + err.message });
   }
 
-  const text = result.response.text().trim();
+  const data = await apiRes.json();
+
+  if (!apiRes.ok) {
+    const msg = data?.error?.message || JSON.stringify(data);
+    return res.status(502).json({ error: msg });
+  }
+
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
   return res.status(200).json({ text });
 }
 
-/* config must be on the exported function — do NOT overwrite module.exports after setting config */
 handler.config = {
-  api: {
-    bodyParser: false,
-    sizeLimit: '25mb',
-  },
+  api: { bodyParser: false, sizeLimit: '25mb' },
 };
 
 module.exports = handler;
