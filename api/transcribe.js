@@ -7,11 +7,11 @@
  * Sends audio inline to Gemini and returns { text: string }
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import formidable from 'formidable';
-import fs from 'fs';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const formidable = require('formidable');
+const fs = require('fs');
 
-export const config = {
+module.exports.config = {
   api: {
     bodyParser: false,
     sizeLimit: '25mb',
@@ -23,7 +23,7 @@ const LANGUAGE_NAMES = {
   'nl-to-ar': 'Dutch',
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -51,10 +51,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No audio file received.' });
   }
 
-  const direction   = fields.direction?.[0] || 'ar-to-nl';
-  const language    = LANGUAGE_NAMES[direction] || 'Arabic';
-  const mimeType    = audioFile.mimetype || 'audio/webm';
-  const model       = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const direction = fields.direction?.[0] || 'ar-to-nl';
+  const language  = LANGUAGE_NAMES[direction] || 'Arabic';
+  const mimeType  = audioFile.mimetype || 'audio/webm';
+  const model     = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
   let audioData;
   try {
@@ -66,22 +66,14 @@ export default async function handler(req, res) {
   }
 
   const base64Audio = audioData.toString('base64');
-
-  const genAI     = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const gemini    = genAI.getGenerativeModel({ model });
+  const genAI       = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const gemini      = genAI.getGenerativeModel({ model });
 
   let result;
   try {
     result = await gemini.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: base64Audio,
-        },
-      },
-      {
-        text: `Transcribe this audio recording. The speaker is speaking ${language}. Return only the transcription text — no labels, no explanations, no formatting markers.`,
-      },
+      { inlineData: { mimeType, data: base64Audio } },
+      { text: `Transcribe this audio recording. The speaker is speaking ${language}. Return only the transcription text — no labels, no explanations, no formatting markers.` },
     ]);
   } catch (err) {
     return res.status(502).json({ error: err.message || 'Gemini transcription failed.' });
@@ -89,4 +81,4 @@ export default async function handler(req, res) {
 
   const text = result.response.text().trim();
   return res.status(200).json({ text });
-}
+};

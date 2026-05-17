@@ -1,10 +1,9 @@
 {
+  "framework": null,
+  "buildCommand": null,
+  "outputDirectory": ".",
   "functions": {
-    "api/transcribe.js": {
-      "maxDuration": 60
-    },
-    "api/translate.js": {
-      "maxDuration": 30
-    }
+    "api/transcribe.js": { "maxDuration": 60 },
+    "api/translate.js": { "maxDuration": 30 }
   }
 }

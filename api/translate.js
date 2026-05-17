@@ -2,18 +2,16 @@
  * POST /api/translate
  * Body: { text: string, direction: 'ar-to-nl' | 'nl-to-ar' }
  * Returns: { text: string }
- *
- * Uses Google Gemini for Arabic ↔ Dutch translation.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const LANGUAGE_PAIRS = {
   'ar-to-nl': { from: 'Arabic', to: 'Dutch' },
   'nl-to-ar': { from: 'Dutch',  to: 'Arabic' },
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -37,8 +35,8 @@ export default async function handler(req, res) {
   const { from, to } = pair;
   const model      = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-  const genAI      = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const gemini     = genAI.getGenerativeModel({
+  const genAI  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const gemini = genAI.getGenerativeModel({
     model,
     systemInstruction: `You are a professional translator specialising in ${from} and ${to}. Translate the user's text from ${from} to ${to} accurately, preserving tone and meaning. Return only the translated text — no introductions, explanations, or quotation marks.`,
   });
@@ -52,4 +50,4 @@ export default async function handler(req, res) {
 
   const translated = result.response.text().trim();
   return res.status(200).json({ text: translated });
-}
+};
