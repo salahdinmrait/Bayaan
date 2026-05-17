@@ -47,7 +47,7 @@ async function handler(req, res) {
   const direction = fields.direction?.[0] || 'ar-to-nl';
   const language  = LANGUAGE_NAMES[direction] || 'Arabic';
   const mimeType  = audioFile.mimetype || 'audio/mp4';
-  const model     = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model     = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   let audioData;
   try {

@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
 
   const pair       = LANGUAGE_PAIRS[direction] || LANGUAGE_PAIRS['ar-to-nl'];
   const { from, to } = pair;
-  const model      = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const model      = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
   const genAI  = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const gemini = genAI.getGenerativeModel({
