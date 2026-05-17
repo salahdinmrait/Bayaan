@@ -1,0 +1,66 @@
+/* ==========================================================================
+   Local Font Declarations — same typefaces as Al-Bayaan Vertalingen
+   ========================================================================== */
+
+/* Poppins — headings, UI, logo */
+@font-face {
+  font-family: 'Poppins';
+  src: url('../Poppins/Poppins-Regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  src: url('../Poppins/Poppins-Medium.ttf') format('truetype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  src: url('../Poppins/Poppins-SemiBold.ttf') format('truetype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Poppins';
+  src: url('../Poppins/Poppins-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Lora — body text */
+@font-face {
+  font-family: 'Lora';
+  src: url('../Lora/Lora-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Lora';
+  src: url('../Lora/Lora-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400 700; font-style: italic; font-display: swap;
+}
+
+/* Kufam — Arabic headings */
+@font-face {
+  font-family: 'Kufam';
+  src: url('../Kufam/Kufam-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400 700; font-style: normal; font-display: swap;
+}
+
+/* Mirza — Arabic body text */
+@font-face {
+  font-family: 'Mirza';
+  src: url('../Mirza/Mirza-Regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Mirza';
+  src: url('../Mirza/Mirza-Medium.ttf') format('truetype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Mirza';
+  src: url('../Mirza/Mirza-SemiBold.ttf') format('truetype');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Mirza';
+  src: url('../Mirza/Mirza-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
