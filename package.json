@@ -4,10 +4,12 @@
   "description": "Audio transcription and translation app — Arabic ↔ Dutch, powered by Google Gemini",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "node dev-server.js",
+    "dev:vercel": "vercel dev"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.3.1",
     "formidable": "^3.5.1"
   },
   "engines": {
