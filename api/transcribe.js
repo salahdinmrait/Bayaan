@@ -11,19 +11,12 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const formidable = require('formidable');
 const fs = require('fs');
 
-module.exports.config = {
-  api: {
-    bodyParser: false,
-    sizeLimit: '25mb',
-  },
-};
-
 const LANGUAGE_NAMES = {
   'ar-to-nl': 'Arabic',
   'nl-to-ar': 'Dutch',
 };
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -53,7 +46,7 @@ module.exports = async function handler(req, res) {
 
   const direction = fields.direction?.[0] || 'ar-to-nl';
   const language  = LANGUAGE_NAMES[direction] || 'Arabic';
-  const mimeType  = audioFile.mimetype || 'audio/webm';
+  const mimeType  = audioFile.mimetype || 'audio/mp4';
   const model     = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
   let audioData;
@@ -81,4 +74,14 @@ module.exports = async function handler(req, res) {
 
   const text = result.response.text().trim();
   return res.status(200).json({ text });
+}
+
+/* config must be on the exported function — do NOT overwrite module.exports after setting config */
+handler.config = {
+  api: {
+    bodyParser: false,
+    sizeLimit: '25mb',
+  },
 };
+
+module.exports = handler;
